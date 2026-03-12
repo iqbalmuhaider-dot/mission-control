@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission Control - OpenClaw</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+            min-height: 100vh;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 280px 1fr 350px;
+            grid-template-rows: 60px 1fr;
+            gap: 15px;
+            height: 100vh;
+            padding: 15px;
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Sidebar - Agents */
+        .sidebar {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #00d9ff;
+        }
+
+        .agent-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .agent-card:hover {
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(0, 217, 255, 0.3);
+        }
+
+        .agent-card.active {
+            border-color: #00d9ff;
+            background: rgba(0, 217, 255, 0.1);
+        }
+
+        .agent-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .agent-model {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .btn {
+            background: linear-gradient(90deg, #00d9ff, #00ff88);
+            color: #1a1a2e;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #eee;
+        }
+
+        /* Main - Canvas */
+        .main {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .canvas-tabs {
+            display: flex;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: 0 15px;
+        }
+
+        .tab {
+            padding: 15px 25px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .tab.active {
+            border-bottom-color: #00d9ff;
+            color: #00d9ff;
+        }
+
+        .canvas-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .chat-messages {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 15px;
+            max-width: 85%;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: rgba(0, 217, 255, 0.2);
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+        }
+
+        .message-content {
+            line-height: 1.6;
+        }
+
+        .input-area {
+            padding: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-area textarea {
+            flex: 1;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 12px;
+            color: #eee;
+            resize: none;
+            height: 60px;
+            font-family: inherit;
+        }
+
+        .input-area textarea:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+
+        /* Right Panel - Settings */
+        .settings {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow-y: auto;
+        }
+
+        .settings h2 {
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: #00d9ff;
+        }
+
+        .setting-group {
+            margin-bottom: 20px;
+        }
+
+        .setting-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        .setting-group select,
+        .setting-group input {
+            width: 100%;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 10px;
+            color: #eee;
+            font-size: 14px;
+        }
+
+        .setting-group select:focus,
+        .setting-group input:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+
+        .model-tag {
+            display: inline-block;
+            background: rgba(0, 217, 255, 0.2);
+            color: #00d9ff;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin: 3px;
+        }
+
+        .code-block {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 10px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎯 Mission Control</h1>
+            <div class="status">
+                <div class="status-dot"></div>
+                <span id="connection-status">Connected to OpenClaw</span>
+            </div>
+        </div>
+
+        <!-- Sidebar - Agents -->
+        <div class="sidebar">
+            <h2>🤖 Agents</h2>
+            <div id="agents-list">
+                <div class="agent-card active" data-agent="main">
+                    <div class="agent-name">Main Agent</div>
+                    <div class="agent-model">qwen3.5-plus</div>
+                </div>
+                <div class="agent-card" data-agent="coder">
+                    <div class="agent-name">Coder</div>
+                    <div class="agent-model">qwen3-coder-next</div>
+                </div>
+                <div class="agent-card" data-agent="analyst">
+                    <div class="agent-name">Analyst</div>
+                    <div class="agent-model">qwen3-max</div>
+                </div>
+            </div>
+            <button class="btn" onclick="addAgent()">+ Add Agent</button>
+        </div>
+
+        <!-- Main - Canvas -->
+        <div class="main">
+            <div class="canvas-tabs">
+                <div class="tab active" onclick="switchTab('chat')">💬 Chat</div>
+                <div class="tab" onclick="switchTab('code')">📝 Code Canvas</div>
+                <div class="tab" onclick="switchTab('files')">📁 Files</div>
+            </div>
+            <div class="canvas-content" id="canvas-content">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message assistant">
+                        <div class="message-content">
+                            Hi Boss! I'm your Mission Control AI. What would you like to work on today? 🚀
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="input-area">
+                <textarea id="user-input" placeholder="Type your message... (Shift+Enter for new line)" onkeydown="handleKeyDown(event)"></textarea>
+                <button class="btn" style="width: auto;" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+
+        <!-- Right Panel - Settings -->
+        <div class="settings">
+            <h2>⚙️ Settings</h2>
+            
+            <div class="setting-group">
+                <label>OpenClaw API URL</label>
+                <input type="text" id="api-url" value="http://192.168.0.167:18789/v1">
+            </div>
+
+            <div class="setting-group">
+                <label>Model</label>
+                <select id="model-select">
+                    <option value="qwen3.5-plus">qwen3.5-plus</option>
+                    <option value="qwen3-max-2026-01-23">qwen3-max</option>
+                    <option value="qwen3-coder-next">qwen3-coder-next</option>
+                    <option value="qwen3-coder-plus">qwen3-coder-plus</option>
+                    <option value="MiniMax-M2.5">MiniMax-M2.5</option>
+                    <option value="glm-5">glm-5</option>
+                    <option value="kimi-k2.5">kimi-k2.5</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label>Available Models</label>
+                <div id="models-list">
+                    <span class="model-tag">qwen3.5-plus</span>
+                    <span class="model-tag">qwen3-max</span>
+                    <span class="model-tag">qwen3-coder-next</span>
+                    <span class="model-tag">MiniMax-M2.5</span>
+                    <span class="model-tag">glm-5</span>
+                    <span class="model-tag">kimi-k2.5</span>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <label>Session</label>
+                <select id="session-select">
+                    <option value="main">Main Session</option>
+                </select>
+            </div>
+
+            <button class="btn btn-secondary" onclick="clearChat()">🗑️ Clear Chat</button>
+            <button class="btn btn-secondary" onclick="exportChat()">💾 Export Chat</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - UPDATE THESE FOR YOUR SETUP
+        let API_URL = 'http://192.168.0.167:18789/v1';  // OpenClaw Gateway API
+        let WS_URL = 'ws://192.168.0.167:18789/ws';     // WebSocket for real-time
+        let currentModel = 'qwen3.5-plus';
+        let currentAgent = 'main';
+        let chatHistory = [];
+        let ws = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAgents();
+            checkConnection();
+            loadSavedConfig();
+        });
+
+        // Save/Load Configuration
+        function saveConfig() {
+            localStorage.setItem('mission_control_api_url', API_URL);
+            localStorage.setItem('mission_control_model', currentModel);
+        }
+
+        function loadSavedConfig() {
+            const savedUrl = localStorage.getItem('mission_control_api_url');
+            const savedModel = localStorage.getItem('mission_control_model');
+            if (savedUrl) {
+                API_URL = savedUrl;
+                document.getElementById('api-url').value = API_URL;
+            }
+            if (savedModel) {
+                currentModel = savedModel;
+                document.getElementById('model-select').value = currentModel;
+            }
+        }
+
+        // Check OpenClaw Connection
+        async function checkConnection() {
+            try {
+                // Try OpenClaw API
+                const response = await fetch(`${API_URL.replace('/v1', '')}/status`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    document.getElementById('connection-status').textContent = 'Connected to OpenClaw';
+                    document.getElementById('connection-status').style.color = '#00ff88';
+                    connectWebSocket();
+                } else {
+                    throw new Error('Connection failed');
+                }
+            } catch (error) {
+                // Try alternative endpoint
+                try {
+                    const altResponse = await fetch(`${API_URL}/chat/completions`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: currentModel,
+                            messages: [{ role: 'user', content: 'ping' }],
+                            max_tokens: 5
+                        })
+                    });
+                    
+                    if (altResponse.ok) {
+                        document.getElementById('connection-status').textContent = 'Connected (API)';
+                        document.getElementById('connection-status').style.color = '#00ff88';
+                    } else {
+                        throw new Error('API test failed');
+                    }
+                } catch (e) {
+                    document.getElementById('connection-status').textContent = 'Disconnected - Using Demo Mode';
+                    document.getElementById('connection-status').style.color = '#ff6b6b';
+                }
+            }
+        }
+
+        // WebSocket Connection (Real-time)
+        function connectWebSocket() {
+            try {
+                ws = new WebSocket(WS_URL);
+                
+                ws.onopen = () => {
+                    console.log('WebSocket connected');
+                };
+                
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.content) {
+                        addMessageToChat('assistant', data.content);
+                        chatHistory.push({ role: 'assistant', content: data.content });
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    console.log('WebSocket error:', error);
+                };
+                
+                ws.onclose = () => {
+                    console.log('WebSocket closed');
+                };
+            } catch (error) {
+                console.log('WebSocket not available:', error);
+            }
+        }
+
+        // Load Agents
+        function loadAgents() {
+            const agents = document.querySelectorAll('.agent-card');
+            agents.forEach(agent => {
+                agent.addEventListener('click', () => {
+                    agents.forEach(a => a.classList.remove('active'));
+                    agent.classList.add('active');
+                    currentAgent = agent.dataset.agent;
+                });
+            });
+        }
+
+        // Add Agent
+        function addAgent() {
+            const name = prompt('Agent name:');
+            if (name) {
+                const model = prompt('Model (e.g., qwen3.5-plus):', 'qwen3.5-plus');
+                if (model) {
+                    const agentsList = document.getElementById('agents-list');
+                    const agentCard = document.createElement('div');
+                    agentCard.className = 'agent-card';
+                    agentCard.dataset.agent = name.toLowerCase().replace(/\s+/g, '-');
+                    agentCard.innerHTML = `
+                        <div class="agent-name">${name}</div>
+                        <div class="agent-model">${model}</div>
+                    `;
+                    agentsList.appendChild(agentCard);
+                    loadAgents();
+                }
+            }
+        }
+
+        // Switch Tab
+        function switchTab(tab) {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const content = document.getElementById('canvas-content');
+            if (tab === 'chat') {
+                content.innerHTML = `
+                    <div class="chat-messages" id="chat-messages">
+                        ${chatHistory.map(msg => `
+                            <div class="message ${msg.role}">
+                                <div class="message-content">${msg.content}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else if (tab === 'code') {
+                content.innerHTML = `
+                    <div class="code-block" contenteditable="true">
+// Code Canvas
+// Start typing your code here...
+
+function hello() {
+    console.log("Hello, Mission Control!");
+}
+                    </div>
+                `;
+            } else if (tab === 'files') {
+                content.innerHTML = `
+                    <div style="padding: 20px;">
+                        <h3>📁 Files</h3>
+                        <p style="color: #aaa; margin-top: 10px;">File browser coming soon...</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Handle Enter Key
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Send Message
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            // Add user message to chat
+            addMessageToChat('user', message);
+            chatHistory.push({ role: 'user', content: message });
+            
+            input.value = '';
+
+            // Show typing indicator
+            const typingId = addTypingIndicator();
+
+            // Try WebSocket first (real-time)
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'message',
+                    content: message,
+                    model: currentModel,
+                    agent: currentAgent
+                }));
+                
+                // Wait for response with timeout
+                setTimeout(() => {
+                    removeTypingIndicator(typingId);
+                }, 3000);
+                return;
+            }
+
+            // Fallback to HTTP API
+            try {
+                const response = await fetch(`${API_URL}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: currentModel,
+                        messages: chatHistory,
+                        stream: false,
+                        max_tokens: 2048
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const assistantMessage = data.choices[0].message.content;
+                    
+                    removeTypingIndicator(typingId);
+                    addMessageToChat('assistant', assistantMessage);
+                    chatHistory.push({ role: 'assistant', content: assistantMessage });
+                } else {
+                    throw new Error('API error');
+                }
+            } catch (error) {
+                // Demo mode response
+                removeTypingIndicator(typingId);
+                const demoResponse = getDemoResponse(message);
+                addMessageToChat('assistant', demoResponse);
+                chatHistory.push({ role: 'assistant', content: demoResponse });
+            }
+        }
+
+        // Add Message to Chat
+        function addMessageToChat(role, content) {
+            const chatMessages = document.getElementById('chat-messages');
+            if (!chatMessages) return;
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.innerHTML = `<div class="message-content">${formatMessage(content)}</div>`;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Format Message (handle code blocks)
+        function formatMessage(content) {
+            // Simple code block formatting
+            return content
+                .replace(/```(\w*)\n([\s\S]*?)```/g, '<div class="code-block">$2</div>')
+                .replace(/`([^`]+)`/g, '<code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">$1</code>')
+                .replace(/\n/g, '<br>');
+        }
+
+        // Add Typing Indicator
+        function addTypingIndicator() {
+            const chatMessages = document.getElementById('chat-messages');
+            const id = 'typing-' + Date.now();
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message assistant';
+            typingDiv.id = id;
+            typingDiv.innerHTML = '<div class="message-content">🤔 Thinking...</div>';
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return id;
+        }
+
+        // Remove Typing Indicator
+        function removeTypingIndicator(id) {
+            const typingDiv = document.getElementById(id);
+            if (typingDiv) typingDiv.remove();
+        }
+
+        // Demo Response (when API not available)
+        function getDemoResponse(message) {
+            const responses = {
+                'hello': 'Hi there! Ready to help with your tasks! 🚀',
+                'help': 'I can help you with:\n- Code writing & debugging\n- Task management\n- File operations\n- Web searches\n- And more!',
+                'default': 'Thanks for your message! In demo mode, I can\'t connect to OpenClaw yet. Configure the API URL in settings to enable full functionality.'
+            };
+
+            const lowerMessage = message.toLowerCase();
+            for (const [key, value] of Object.entries(responses)) {
+                if (lowerMessage.includes(key)) return value;
+            }
+            return responses.default;
+        }
+
+        // Clear Chat
+        function clearChat() {
+            chatHistory = [];
+            const chatMessages = document.getElementById('chat-messages');
+            if (chatMessages) {
+                chatMessages.innerHTML = '<div class="message assistant"><div class="message-content">Chat cleared! Ready for new conversation. 🎯</div></div>';
+            }
+        }
+
+        // Export Chat
+        function exportChat() {
+            const chatText = chatHistory.map(msg => `${msg.role.toUpperCase()}: ${msg.content}`).join('\n\n');
+            const blob = new Blob([chatText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mission-control-chat-${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Model Selection
+        document.getElementById('model-select').addEventListener('change', (e) => {
+            currentModel = e.target.value;
+        });
+
+        // API URL Update
+        document.getElementById('api-url').addEventListener('change', (e) => {
+            API_URL = e.target.value;
+            WS_URL = API_URL.replace('/v1', '').replace('http', 'ws') + '/ws';
+            saveConfig();
+            checkConnection();
+            alert('API URL updated to: ' + API_URL + '\nReconnecting...');
+        });
+
+        // Model Selection
+        document.getElementById('model-select').addEventListener('change', (e) => {
+            currentModel = e.target.value;
+            saveConfig();
+        });
+    </script>
+</body>
+</html>

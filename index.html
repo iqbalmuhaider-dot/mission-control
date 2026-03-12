@@ -3,113 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mission Control - OpenClaw</title>
+    <title>Embun Dashboard</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: #eee;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container { max-width: 900px; margin: 0 auto; }
-        h1 {
-            font-size: 28px;
-            background: linear-gradient(90deg, #00d9ff, #00ff88);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 20px;
-        }
-        .card {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .status {
-            padding: 12px;
-            border-radius: 8px;
-            margin: 15px 0;
-            font-weight: 600;
-        }
-        .connected { background: rgba(0,255,136,0.15); color: #00ff88; border: 1px solid #00ff88; }
-        .disconnected { background: rgba(255,107,107,0.15); color: #ff6b6b; border: 1px solid #ff6b6b; }
-        input {
-            width: 100%; padding: 10px; border-radius: 6px;
-            border: 1px solid rgba(255,255,255,0.2);
-            background: rgba(0,0,0,0.3); color: #eee; margin: 8px 0;
-        }
-        button {
-            background: linear-gradient(90deg, #00d9ff, #00ff88);
-            color: #1a1a2e; border: none; padding: 10px 20px;
-            border-radius: 6px; cursor: pointer; font-weight: 600; margin: 5px;
-        }
+        body { font-family: system-ui; background: #1a1a2e; color: #eee; min-height: 100vh; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #00d9ff; margin-bottom: 20px; }
+        .card { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .status { padding: 12px; border-radius: 8px; margin: 15px 0; font-weight: 600; }
+        .connected { background: rgba(0,255,136,0.15); color: #00ff88; }
+        .disconnected { background: rgba(255,107,107,0.15); color: #ff6b6b; }
+        input, textarea { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: #eee; margin: 8px 0; }
+        button { background: linear-gradient(90deg, #00d9ff, #00ff88); color: #1a1a2e; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; margin: 5px; }
         button:hover { opacity: 0.9; }
-        label { font-size: 13px; color: #aaa; display: block; margin-top: 10px; }
+        .response { background: rgba(0,255,136,0.1); border-left: 3px solid #00ff88; padding: 15px; margin-top: 15px; border-radius: 0 6px 6px 0; }
         code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🎏 Mission Control</h1>
-        <div id="status" class="status disconnected">𔝍 Checking connection...</div>
+        <h1>🎯 Embun Dashboard</h1>
         
         <div class="card">
-            <h3>♠／ PI Configuration</h3>
-            <label>OpenClaw Gateway URL:</label>
-            <input type="text" id="api-url" placeholder="http://192.168.0.167:18789/v1">
-            <small style="color:#aaa;display:block;margin-top:5px;">
-                💩 Local: <code>http://192.168.0.167:18789/v1</code><br>
-                💩 Tunnel: <code>https://your-domain.com/v1</code>
-            </small>
-            <button onclick="saveAndTest()" style="margin-top:10px;">🚂 Save & Test</button>
+            <h3>📊 Gateway Status</h3>
+            <div id="status" class="status disconnected">🔍 Checking...</div>
+            <div id="info" style="font-size: 13px; color: #aaa; margin-top: 10px;"></div>
         </div>
         
         <div class="card">
-            <h3>🚬 Chat Test</h3>
-            <textarea id="message" placeholder="Type message..." style="width:100%;min-height:80px;margin:8px 0;padding:10px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#eee;"></textarea>
-            <button onclick="send()">🚠 Send</button>
+            <h3>💬 Chat with Embun</h3>
+            <textarea id="message" placeholder="Type your message..." rows="4"></textarea>
+            <button onclick="send()">🚀 Send</button>
         </div>
         
-        <div id="response" class="card" style="display:none;">
-            <h3>💝 Response</h3>
+        <div id="response" class="card response" style="display:none;">
+            <h4>📝 Response:</h4>
             <div id="response-content"></div>
         </div>
+        
+        <div class="card">
+            <h3>📋 Today's Plan</h3>
+            <div id="plan" style="margin-top: 10px; color: #aaa;">Loading...</div>
+        </div>
     </div>
+
     <script>
-        let API_URL = localStorage.getItem('mc_api') || '';
-        document.getElementById('api-url').value = API_URL;
-        window.addEventListener('load', () => { if(API_URL) testConnection(); });
-        function saveAndTest() {
-            API_URL = document.getElementById('api-url').value.trim();
-            localStorage.setItem('mc_api', API_URL);
-            testConnection();
-        }
-        async function testConnection() {
+        const GATEWAY = 'http://192.168.0.167:18789';
+        
+        window.addEventListener('load', () => {
+            checkStatus();
+            loadPlan();
+        });
+        
+        async function checkStatus() {
             const s = document.getElementById('status');
-            if(!API_URL) { s.textContent='⚠’ Enter API URL'; s.className='status disconnected'; return; }
+            const info = document.getElementById('info');
             try {
-                const r = await fetch(API_URL.replace('/v1','')+'/status');
-                if(r.ok) { s.textContent='✅ ONNECTED!'; s.className='status connected'; }
-                else throw new Error('Status '+r.status);
-            } catch(e) { s.textContent='❏ '+e.message; s.className='status disconnected'; }
+                const r = await fetch(GATEWAY + '/');
+                if (r.ok) {
+                    s.textContent = '✅ CONNECTED TO OPENCLAW!';
+                    s.className = 'status connected';
+                    info.textContent = 'Gateway: ' + GATEWAY + ' | Model: qwen3.5-plus';
+                } else {
+                    throw new Error('Status ' + r.status);
+                }
+            } catch (e) {
+                s.textContent = '❌ DISCONNECTED';
+                s.className = 'status disconnected';
+                info.textContent = 'Error: ' + e.message;
+            }
         }
+        
+        async function loadPlan() {
+            const p = document.getElementById('plan');
+            try {
+                const r = await fetch('https://raw.githubusercontent.com/iqbalmuhaider-dot/mission-control/main/plans.json');
+                if (r.ok) {
+                    const d = await r.json();
+                    const today = new Date().toISOString().split('T')[0];
+                    p.textContent = d.plans?.[today] || 'No plan for today';
+                } else {
+                    p.textContent = 'Loading plan...';
+                }
+            } catch (e) {
+                p.textContent = 'Follow up dengan banker\nUpdate laptop makmal\nCheck ID Delima murid tahun 1\nFollow up banner Semarak Kasih Ramadan';
+            }
+        }
+        
         async function send() {
             const msg = document.getElementById('message').value.trim();
-            if(!msg) return alert('Enter message!');
-            if(!API_URL) return alert('Configure API first!');
-            const rd = document.getElementById('response'), rc = document.getElementById('response-content');
-            rd.style.display='block'; rc.innerHTML='<p>🌔 Thinking...</p>';
+            if (!msg) return alert('Enter message!');
+            
+            const rd = document.getElementById('response');
+            const rc = document.getElementById('response-content');
+            rd.style.display = 'block';
+            rc.innerHTML = '<p>🤔 Embun is thinking...</p>';
+            
+            // Use sessions_send via OpenClaw
             try {
-                const r = await fetch(API_URL+'/chat/completions', {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({model:'qwen3.5-plus', messages:[{role:'user',content:msg}]})
+                const r = await fetch(GATEWAY + '/api/sessions/send', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        message: msg,
+                        timeoutSeconds: 30
+                    })
                 });
-                if(r.ok) { const d = await r.json(); rc.innerHTML='<p>'+(d.choices?.[0]?.message?.content||'No response')+'</p>'; }
-                else rc.innerHTML='<p style="color:#ff6b6b">❇ '+r.status+'</p>';
-            } catch(e) { rc.innerHTML='<p style="color:#ff6b6b">❇ '+e.message+'</p>'; }
+                
+                if (r.ok) {
+                    const d = await r.json();
+                    rc.innerHTML = '<p>' + (d.message || 'Message sent!') + '</p>';
+                } else {
+                    rc.innerHTML = '<p style="color:#ff6b6b">❌ Error: ' + r.status + '</p>';
+                }
+            } catch (e) {
+                rc.innerHTML = '<p style="color:#ff6b6b">❌ Error: ' + e.message + '</p>';
+            }
         }
     </script>
 </body>
